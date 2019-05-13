@@ -19,7 +19,8 @@ export class AppComponent implements OnInit {
   private originalText: string = '';
   public editorFocused: boolean = false;
   public hoverItem: any = null;
-
+  private parentItem: any = {};
+  
   public ctrlStyle: any = {
     general: {
       normal: 'trw-add-dynamic'
@@ -40,7 +41,8 @@ export class AppComponent implements OnInit {
   }
 
   // Add/Remove ------------------------------------------------------------------------
-
+  // When user click on add tree button to create new tree so it will dynamically show dummay item text
+  // in input box 
   createNewItem() {
     this.itemCount++;
 
@@ -48,6 +50,8 @@ export class AppComponent implements OnInit {
     
   }
 
+  // When we will add child tree in the parent tree
+  // that time this function will call
   addRoot() {
     let item: any = this.createNewItem();
 
@@ -55,7 +59,10 @@ export class AppComponent implements OnInit {
     this.showEditor(item);
   }
 
+  // When we will add child tree in the parent tree
+  // that time this function will call
   addChild(parent: any) {
+    this.parentItem = parent;
     let item: any = this.createNewItem();
 
     this.treeview.addItem(item, parent);
@@ -83,6 +90,7 @@ export class AppComponent implements OnInit {
   }
 
   showEditor(item: any) {
+    console.log("show", item)
     this.originalText = item.text;
     this.isEditActive = true;
     this.editItem = item;
@@ -91,7 +99,13 @@ export class AppComponent implements OnInit {
     item.allowDrag = false;
   }
 
+  // When user come back from edit mode in tree
+  // like after creating new tree hit enter or click out side the input box 
+  // that time this function will call
   closeEditor() {
+    console.log()
+    // after adding name of tree call POST API to save data in database
+    this.saveTreeData();
     if (this.editItem)
       this.editItem.allowDrag = true;
 
@@ -122,24 +136,38 @@ export class AppComponent implements OnInit {
       } else {
         this.originalText = this.editItem.text;
       }
-    this.saveTreeData();
     this.closeEditor();
   }
 
+  // POST API call to add tree data in database
   saveTreeData() {
-    this.http.post(`http://localhost:5000/tree/`, this.editItem)
+    const mergeItem = Object.assign({}, this.editItem, this.parentItem);
+    this.http.post(`http://localhost:5000/tree/`, mergeItem)
       .subscribe(data => {
+        // After successfully adding data call GET API again so it will render the new data on UI
         this.getTreeData();
       }, error => {
         console.log(error);
       });
   }
 
+  // GET API call to fetch the tree data from database 
   getTreeData() {
     this.http.get(`http://localhost:5000/tree/`)
       .subscribe((data: any) => {
-        console.log(data)
-        this.items = data.message;
+        this.items = data.message.length > 0 ? data.message : [{
+          text: "Item " + this.itemCount
+        }];
+      }, error => {
+        console.log(error);
+      })
+  }
+
+  // PUT API call to update the selected tree item in database
+  updateTreeData(treeData: any) {
+    this.http.put(`http://localhost:5000/tree/${treeData._id}`, treeData)
+      .subscribe(data => {
+        console.log(data);
       }, error => {
         console.log(error);
       })
